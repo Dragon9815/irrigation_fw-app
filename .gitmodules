@@ -1,0 +1,6 @@
+[submodule "vendor/stm32f4-hal"]
+	path = vendor/stm32f4-hal
+	url = git@github.com:Dragon9815/stm32f4-hal.git
+[submodule "vendor/stm32f4-cmsis"]
+	path = vendor/stm32f4-cmsis
+	url = git@github.com:Dragon9815/stm32f4-cmsis.git

@@ -1,0 +1,7 @@
+source ~/.local/lib/python3.8/site-packages/cmdebug/svd_gdb.py
+file build/debug/irrigation_mcuapp
+target remote localhost:3333
+svd_load STM32F446.svd
+load
+b main
+
