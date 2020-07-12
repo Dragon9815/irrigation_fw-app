@@ -79,7 +79,7 @@ PenaltyReturnTypeOnItsOwnLine: 100
 
 PointerAlignment: Middle
 ReflowComments: false
-SortIncludes: true
+SortIncludes: false
 SortUsingDeclarations: true
 SpaceAfterCStyleCast: false
 SpaceAfterTemplateKeyword: false

@@ -53,6 +53,17 @@ void SystemClock_Config(void)
     while(LL_RCC_HSE_IsReady() != 1)
         ;
 
+    LL_PWR_EnableBkUpAccess();
+    // LL_RCC_ForceBackupDomainReset();
+    // LL_RCC_ReleaseBackupDomainReset();
+
+    LL_RCC_LSE_Enable();
+    while(LL_RCC_LSE_IsReady() != 1)
+        ;
+
+    LL_RCC_SetRTCClockSource(LL_RCC_RTC_CLKSOURCE_LSE);
+    LL_RCC_EnableRTC();
+
     LL_RCC_PLL_ConfigDomain_SYS(LL_RCC_PLLSOURCE_HSE, LL_RCC_PLLM_DIV_4, 180, LL_RCC_PLLI2SR_DIV_2);
     LL_RCC_PLL_Enable();
     while(LL_RCC_PLL_IsReady())

@@ -13,26 +13,29 @@
 
 typedef enum
 {
+    DTFORMAT_BIN = 0,
     DTFORMAT_BCD,
-    DTFORMAT_BIN
 } datetime_format_t;
 
 typedef struct
 {
     datetime_format_t format;
 
-    uint16_t year;
-    uint8_t  month;
-    uint8_t  day;
+    u16 year;
+    u8  month;
+    u8  day;
 
-    uint8_t hour;
-    uint8_t minute;
-    uint8_t second;
+    u8 hour;
+    u8 minute;
+    u8 second;
 } datetime_t;
 
-extern void datetime_now(datetime_t * out_datetime);
+extern datetime_t datetime_now(void);
+extern datetime_t datetime_fromTime(u8 hour, u8 minute, u8 second);
+extern datetime_t datetime_toFormat(const datetime_t * datetime, const datetime_format_t format);
 
-//extern uint32_t datetime_getSecondsOfDay(const datetime_t* datetime);
+extern uint32_t datetime_getMinutes(const datetime_t * datetime);
+
 extern uint32_t datetime_getMinutesToday(const datetime_t * datetime);
 extern uint32_t datetime_getHoursToday(const datetime_t * datetime);
 

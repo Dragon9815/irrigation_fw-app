@@ -46,6 +46,10 @@ typedef enum
     INPUT_RAINBARREL_EMPTY,
     INPUT_RAINBARREL_FULL,
 
+    INPUT_CLOCK_SET,
+    INPUT_CLOCK_PLUS,
+    INPUT_CLOCK_MINUS,
+
     NUM_INPUTS
 } input_t;
 
@@ -58,6 +62,9 @@ extern void io_setOutput(output_t output, bool state);
 extern void io_setAllOutputs(uint32_t state);
 
 extern bool io_getInput(input_t input);
+extern bool io_getInputLongPress(input_t input);
+extern bool io_getInputEdgePos(input_t input);
+extern bool io_getInputEdgeNeg(input_t input);
 
 __SG_END_DECLS
 

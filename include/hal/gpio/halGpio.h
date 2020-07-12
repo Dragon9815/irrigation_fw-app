@@ -15,22 +15,22 @@
 #include "types.h"
 #include <stm32f4xx.h>
 
-#define HAL_GPIO_PIN_0   0x0001
-#define HAL_GPIO_PIN_1   0x0002
-#define HAL_GPIO_PIN_2   0x0004
-#define HAL_GPIO_PIN_3   0x0008
-#define HAL_GPIO_PIN_4   0x0010
-#define HAL_GPIO_PIN_5   0x0020
-#define HAL_GPIO_PIN_6   0x0040
-#define HAL_GPIO_PIN_7   0x0080
-#define HAL_GPIO_PIN_8   0x0100
-#define HAL_GPIO_PIN_9   0x0200
-#define HAL_GPIO_PIN_10  0x0400
-#define HAL_GPIO_PIN_11  0x0800
-#define HAL_GPIO_PIN_12  0x1000
-#define HAL_GPIO_PIN_13  0x2000
-#define HAL_GPIO_PIN_14  0x4000
-#define HAL_GPIO_PIN_15  0x8000
+#define HAL_GPIO_PIN_0  0x0001
+#define HAL_GPIO_PIN_1  0x0002
+#define HAL_GPIO_PIN_2  0x0004
+#define HAL_GPIO_PIN_3  0x0008
+#define HAL_GPIO_PIN_4  0x0010
+#define HAL_GPIO_PIN_5  0x0020
+#define HAL_GPIO_PIN_6  0x0040
+#define HAL_GPIO_PIN_7  0x0080
+#define HAL_GPIO_PIN_8  0x0100
+#define HAL_GPIO_PIN_9  0x0200
+#define HAL_GPIO_PIN_10 0x0400
+#define HAL_GPIO_PIN_11 0x0800
+#define HAL_GPIO_PIN_12 0x1000
+#define HAL_GPIO_PIN_13 0x2000
+#define HAL_GPIO_PIN_14 0x4000
+#define HAL_GPIO_PIN_15 0x8000
 
 #define HAL_GPIO_AF_NONE 0
 
@@ -108,14 +108,14 @@
 #define HAL_GPIO_AF12_OTG2_FS 12
 
 // AF 13
-#define HAL_GPIO_AF13_DCMI    13
+#define HAL_GPIO_AF13_DCMI 13
 
 // AF 14
 
 // AF 15
 #define HAL_GPIO_AF15_EVENTOUT 15
 
-typedef enum 
+typedef enum
 {
     HAL_GPIO_MODE_INPUT     = 0x00,
     HAL_GPIO_MODE_OUTPUT    = 0x01,
@@ -129,7 +129,7 @@ typedef enum
 
 typedef enum
 {
-    HAL_GPIO_OUTPUT_TYPE_PUSHPULL = 0,
+    HAL_GPIO_OUTPUT_TYPE_PUSHPULL  = 0,
     HAL_GPIO_OUTPUT_TYPE_OPENDRAIN = 1
 } halGpio_outputType_t;
 
@@ -160,7 +160,7 @@ typedef struct
     halGpio_outputType_t outType;
     halGpio_pull_t       pull;
     halGpio_speed_t      speed;
-    u8                  alternate;
+    u8                   alternate;
     halGpio_init_t       init;
 } halGpio_config_t;
 
@@ -170,6 +170,7 @@ void halGpio_InitPort(GPIO_TypeDef * port, halGpio_config_t * config);
 void halGpio_InitPortPin(GPIO_TypeDef * port, u32 pinMask, halGpio_config_t * config);
 
 void halGpio_SetAlternateFunction(GPIO_TypeDef * port, u8 pinIndex, u8 alternate);
+void halGpio_SetMode(GPIO_TypeDef * port, u8 pinIndex, halGpio_mode_t mode);
 
 void halGpio_SetPin(GPIO_TypeDef * port, u16 pinMask);
 void halGpio_ResetPin(GPIO_TypeDef * port, u16 pinMask);
@@ -180,4 +181,3 @@ bool halGpio_GetPin(GPIO_TypeDef * port, u16 pinMask);
 u16  halGpio_GetPort(GPIO_TypeDef * port);
 
 #endif /* __HAL_GPIO_H__ */
-

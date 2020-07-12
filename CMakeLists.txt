@@ -6,7 +6,7 @@ set(STM32_TARGET_DEVICE STM32F446xx)
 set(STM32_HSE_VALUE 8000000)
 set(STM32HAL_NEEDED_COMPONENTS adc can spi tim uart gpio dma uart rcc flash pwr cortex)
 set(STM32HAL_USE_LL true)
-set(STM32HAL_NEEDED_LL_COMPONENTS dma spi gpio usart rcc )
+set(STM32HAL_NEEDED_LL_COMPONENTS dma i2c gpio rcc rtc spi usart)
 
 add_subdirectory(vendor/stm32f4-cmsis)
 add_subdirectory(vendor/stm32f4-hal)
@@ -24,7 +24,10 @@ set(sources
     dev/spi/SPI_Common.c
     dev/spi/SPI_EEPROM.c
     dev/spi/SPI_WIZ.c
+    dev/rtc/rtc.c
+    dev/rtc/rtcDisplay.c
     dev/timer_common/Timer_Common.c
+    dev/tm1637/tm1637.c
     dev/uart/UART_Common.c
     dev/uart/UART_Config.c
     hal/gpio/halGpio.c

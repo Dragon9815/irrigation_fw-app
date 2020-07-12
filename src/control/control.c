@@ -19,6 +19,8 @@ typedef struct
 
     bool       running;
     datetime_t runningSince;
+    uint32_t   runningMinutes;
+    datetime_t lastRunning;
 } control_areastate_t;
 
 #define NUM_CONTROL_AREAS 3
@@ -29,15 +31,23 @@ static datetime_t          lastWindTime;
 static bool                currentlyRaining;
 static bool                currentlyWindy;
 
+static void checkLastRunning(control_areastate_t * areaState, const datetime_t now)
+{
+    if(areaState->lastRunning.day != now.day || areaState->lastRunning.month != now.month ||
+       areaState->lastRunning.year != now.year) {
+        areaState->runningMinutes = 0;
+    }
+}
+
 static bool execArea(control_areastate_t * areaState)
 {
     datetime_t now;
-    uint32_t   nowMinutes;
+    uint32_t   minutesToday;
     uint32_t   startMinute;
     uint32_t   endMinute;
 
-    datetime_now(&now);
-    nowMinutes = datetime_getMinutesToday(&now);
+    now          = datetime_now();
+    minutesToday = datetime_getMinutesToday(&now);
 
     switch(areaState->inputState) {
     case CONTROL_STATE_OFF:
@@ -49,19 +59,26 @@ static bool execArea(control_areastate_t * areaState)
         endMinute   = datetime_getMinutesToday(&areaState->config.endtime);
 
         if(!areaState->running) {
-            if(nowMinutes >= startMinute && nowMinutes < endMinute &&
-               datetime_diffMinutes(&now, &areaState->runningSince) < areaState->config.duration_minutes &&
-               datetime_diffHours(&now, &lastRainTime) >= areaState->config.rainless_hours &&
-               datetime_diffHours(&now, &lastWindTime) >= areaState->config.windless_hours) {
+            checkLastRunning(areaState, now);
+
+            uint32_t rainless = datetime_diffHours(&now, &lastRainTime);
+            uint32_t windless = datetime_diffHours(&now, &lastWindTime);
+
+            if(minutesToday >= startMinute && minutesToday < endMinute &&
+               areaState->runningMinutes < areaState->config.duration_minutes && !currentlyRaining &&
+               rainless >= areaState->config.rainless_hours && !currentlyWindy &&
+               windless >= areaState->config.windless_hours) {
                 areaState->running      = true;
                 areaState->runningSince = now;
             }
         }
         else {
-            if(nowMinutes < startMinute || nowMinutes <= endMinute ||
-               datetime_diffMinutes(&now, &areaState->runningSince) > areaState->config.duration_minutes ||
-               currentlyRaining || currentlyWindy) {
-                areaState->running = false;
+            areaState->lastRunning = now;
+            uint32_t runningTime   = areaState->runningMinutes + datetime_diffMinutes(&now, &areaState->runningSince);
+            if(minutesToday < startMinute || minutesToday >= endMinute ||
+               runningTime > areaState->config.duration_minutes || currentlyRaining || currentlyWindy) {
+                areaState->runningMinutes = runningTime;
+                areaState->running        = false;
             }
         }
         break;
@@ -75,9 +92,26 @@ static bool execArea(control_areastate_t * areaState)
     return areaState->running;
 }
 
+static datetime_t nullTime()
+{
+    datetime_t dt;
+    dt.format = DTFORMAT_BIN;
+    dt.year   = 0;
+    dt.month  = 1;
+    dt.day    = 1;
+    dt.hour   = 0;
+    dt.minute = 0;
+    dt.second = 0;
+    return dt;
+}
+
 void control_initialize(void)
 {
     memset(areaStates, 0, sizeof(areaStates));
+    lastWindTime     = nullTime();
+    lastRainTime     = nullTime();
+    currentlyRaining = false;
+    currentlyWindy   = false;
 }
 
 void control_executeThread(void)
@@ -87,11 +121,11 @@ void control_executeThread(void)
     bool areaOutput;
 
     if(currentlyRaining) {
-        datetime_now(&lastRainTime);
+        lastRainTime = datetime_now();
     }
 
     if(currentlyWindy) {
-        datetime_now(&lastWindTime);
+        lastWindTime = datetime_now();
     }
 
     allOff = true;
@@ -103,7 +137,7 @@ void control_executeThread(void)
         }
     }
 
-    //    setRelayOuput(3, !allOff);
+    io_setOutput(OUTPUT_SHUTDOWN, !allOff);
 }
 
 void control_configArea(control_area_t area, const control_config_t * config)
@@ -180,10 +214,16 @@ void control_setAreaInputState(control_area_t area, control_state_t state)
 
 void control_setIsRaining(bool raining)
 {
+    if(!raining && currentlyRaining) {
+        lastRainTime = datetime_now();
+    }
     currentlyRaining = raining;
 }
 
 void control_setIsWindy(bool windy)
 {
+    if(!windy && currentlyWindy) {
+        lastWindTime = datetime_now();
+    }
     currentlyWindy = windy;
 }

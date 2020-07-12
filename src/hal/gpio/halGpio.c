@@ -224,6 +224,14 @@ void halGpio_SetAlternateFunction(GPIO_TypeDef * port, u8 pinIndex, u8 alternate
     port->AFR[afrIndex] |= ((u32)alternate << afrOffset);
 }
 
+void halGpio_SetMode(GPIO_TypeDef * port, u8 pinIndex, halGpio_mode_t mode)
+{
+    if(mode != HAL_GPIO_MODE_UNCHANGED && mode != HAL_GPIO_MODE_UNUSED) {
+        port->MODER &= ~(GPIO_MODER_MODE0 << (pinIndex * 2));
+        port->MODER |= (((u32)(mode)&0x03) << (pinIndex * 2));
+    }
+}
+
 void halGpio_SetPin(GPIO_TypeDef * port, u16 pinMask)
 {
     port->BSRR = (u32)pinMask;

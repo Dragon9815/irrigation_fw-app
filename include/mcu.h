@@ -20,6 +20,7 @@
 #include <stm32f4xx_ll_dma.h>
 #include <stm32f4xx_ll_exti.h>
 #include <stm32f4xx_ll_gpio.h>
+#include <stm32f4xx_ll_i2c.h>
 #include <stm32f4xx_ll_pwr.h>
 #include <stm32f4xx_ll_rcc.h>
 #include <stm32f4xx_ll_spi.h>
