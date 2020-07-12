@@ -52,5 +52,6 @@ extern void control_setRainlessPeriod(control_area_t area, uint16_t hours);
 extern void control_setAreaInputState(control_area_t area, control_state_t state);
 extern void control_setIsRaining(bool raining);
 extern void control_setIsWindy(bool windy);
+extern void control_setLowWater(bool hasLowWater);
 
 #endif /* __CONTROL_H__ */

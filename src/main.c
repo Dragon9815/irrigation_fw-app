@@ -69,8 +69,8 @@ typedef enum
 
 control_state_t readTrinput(input_t inputAuto, input_t inputManual)
 {
-    bool bHand = !io_getInput(inputManual);
-    bool bAuto = !io_getInput(inputAuto);
+    bool bHand = io_getInput(inputManual);
+    bool bAuto = io_getInput(inputAuto);
 
     if(bHand && !bAuto) {
         return CONTROL_STATE_MANUAL;
@@ -229,6 +229,40 @@ void shell_execThread(void)
     }
 }
 
+typedef enum
+{
+    CISTERN_LEVEL_EMPTY      = 0,
+    CISTERN_LEVEL_NEAR_EMPTY = 1,
+    CISTERN_LEVEL_QUATER     = 2,
+    CISTERN_LEVEL_HALF       = 3,
+    CISTERN_LEVEL_FULL       = 4,
+} cisternWaterLevel_t;
+
+static cisternWaterLevel_t getAndDisplayWaterLevel(void)
+{
+    cisternWaterLevel_t waterLevel;
+
+    if(io_getInput(INPUT_CISTERN_FULL)) {
+        waterLevel = CISTERN_LEVEL_FULL;
+    }
+    else if(io_getInput(INPUT_CISTERN_HALF)) {
+        waterLevel = CISTERN_LEVEL_HALF;
+    }
+    else if(io_getInput(INPUT_CISTERN_QUATER)) {
+        waterLevel = CISTERN_LEVEL_QUATER;
+    }
+    else if(io_getInput(INPUT_CISTERN_EMPTY)) {
+        waterLevel = CISTERN_LEVEL_NEAR_EMPTY;
+    }
+    else {
+        waterLevel = CISTERN_LEVEL_EMPTY;
+    }
+
+    io_setOutput(OUTPUT_STATUS1, waterLevel >= CISTERN_LEVEL_QUATER);
+    io_setOutput(OUTPUT_STATUS2, waterLevel >= CISTERN_LEVEL_HALF);
+
+    return waterLevel;
+}
 
 int main(void)
 {
@@ -277,22 +311,21 @@ int main(void)
 
     Main_T0 = Timing_GetTicks_ms();
     while(true) {
+        //shell_execThread();
+
+        io_execThread();
+
+        cisternWaterLevel_t waterLevel = getAndDisplayWaterLevel();
+
         control_setAreaInputState(CONTROL_AREA_LAWN, readTrinput(INPUT_AUTO1, INPUT_MANUAL1));
         control_setAreaInputState(CONTROL_AREA_HEDGE, readTrinput(INPUT_AUTO2, INPUT_MANUAL2));
         control_setAreaInputState(CONTROL_AREA_PLANTS, readTrinput(INPUT_AUTO3, INPUT_MANUAL3));
         control_setIsRaining(io_getInput(INPUT_RAIN_SENSOR));
         control_setIsWindy(io_getInput(INPUT_WIND_SENSOR));
-
-        shell_execThread();
-
+        control_setLowWater(waterLevel < CISTERN_LEVEL_QUATER);
         control_executeThread();
-        io_execThread();
 
         rtcDisplay_execThread();
-
-        io_setOutput(OUTPUT_STATUS1, io_getInputLongPress(INPUT_CLOCK_SET));
-        io_setOutput(OUTPUT_STATUS2, io_getInputLongPress(INPUT_CLOCK_PLUS));
-        io_setOutput(OUTPUT_STATUS3, io_getInputLongPress(INPUT_CLOCK_MINUS));
 
         Main_T1     = Timing_GetTicks_ms();
         Main_DeltaT = Main_T1 - Main_T0;

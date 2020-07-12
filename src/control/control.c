@@ -30,6 +30,7 @@ static datetime_t          lastRainTime;
 static datetime_t          lastWindTime;
 static bool                currentlyRaining;
 static bool                currentlyWindy;
+static bool                lowWater;
 
 static void checkLastRunning(control_areastate_t * areaState, const datetime_t now)
 {
@@ -55,30 +56,35 @@ static bool execArea(control_areastate_t * areaState)
         break;
 
     case CONTROL_STATE_AUTO:
-        startMinute = datetime_getMinutesToday(&areaState->config.starttime);
-        endMinute   = datetime_getMinutesToday(&areaState->config.endtime);
-
-        if(!areaState->running) {
-            checkLastRunning(areaState, now);
-
-            uint32_t rainless = datetime_diffHours(&now, &lastRainTime);
-            uint32_t windless = datetime_diffHours(&now, &lastWindTime);
-
-            if(minutesToday >= startMinute && minutesToday < endMinute &&
-               areaState->runningMinutes < areaState->config.duration_minutes && !currentlyRaining &&
-               rainless >= areaState->config.rainless_hours && !currentlyWindy &&
-               windless >= areaState->config.windless_hours) {
-                areaState->running      = true;
-                areaState->runningSince = now;
-            }
+        if(lowWater) {
+            areaState->running = false;
         }
         else {
-            areaState->lastRunning = now;
-            uint32_t runningTime   = areaState->runningMinutes + datetime_diffMinutes(&now, &areaState->runningSince);
-            if(minutesToday < startMinute || minutesToday >= endMinute ||
-               runningTime > areaState->config.duration_minutes || currentlyRaining || currentlyWindy) {
-                areaState->runningMinutes = runningTime;
-                areaState->running        = false;
+            startMinute = datetime_getMinutesToday(&areaState->config.starttime);
+            endMinute   = datetime_getMinutesToday(&areaState->config.endtime);
+
+            if(!areaState->running) {
+                checkLastRunning(areaState, now);
+
+                uint32_t rainless = datetime_diffHours(&now, &lastRainTime);
+                uint32_t windless = datetime_diffHours(&now, &lastWindTime);
+
+                if(minutesToday >= startMinute && minutesToday < endMinute &&
+                   areaState->runningMinutes < areaState->config.duration_minutes && !currentlyRaining &&
+                   rainless >= areaState->config.rainless_hours && !currentlyWindy &&
+                   windless >= areaState->config.windless_hours) {
+                    areaState->running      = true;
+                    areaState->runningSince = now;
+                }
+            }
+            else {
+                areaState->lastRunning = now;
+                uint32_t runningTime = areaState->runningMinutes + datetime_diffMinutes(&now, &areaState->runningSince);
+                if(minutesToday < startMinute || minutesToday >= endMinute ||
+                   runningTime > areaState->config.duration_minutes || currentlyRaining || currentlyWindy) {
+                    areaState->runningMinutes = runningTime;
+                    areaState->running        = false;
+                }
             }
         }
         break;
@@ -226,4 +232,9 @@ void control_setIsWindy(bool windy)
         lastWindTime = datetime_now();
     }
     currentlyWindy = windy;
+}
+
+void control_setLowWater(bool hasLowWater)
+{
+    lowWater = hasLowWater;
 }
