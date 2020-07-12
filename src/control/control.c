@@ -23,6 +23,20 @@ typedef struct
     datetime_t lastRunning;
 } control_areastate_t;
 
+typedef enum
+{
+    RAINBARREL_LEVEL_EMPTY   = 0,
+    RAINBARREL_LEVEL_BETWEEN = 1,
+    RAINBARREL_LEVEL_FULL    = 2,
+} rainbarrelWaterLevel_t;
+
+typedef struct
+{
+    bool                   running;
+    datetime_t             runningSince;
+    rainbarrelWaterLevel_t prevLevel;
+} rainbarrelState_t;
+
 #define NUM_CONTROL_AREAS 3
 
 static control_areastate_t areaStates[NUM_CONTROL_AREAS];
@@ -31,6 +45,7 @@ static datetime_t          lastWindTime;
 static bool                currentlyRaining;
 static bool                currentlyWindy;
 static bool                lowWater;
+static rainbarrelState_t   rainbarrelState;
 
 static void checkLastRunning(control_areastate_t * areaState, const datetime_t now)
 {
@@ -38,6 +53,45 @@ static void checkLastRunning(control_areastate_t * areaState, const datetime_t n
        areaState->lastRunning.year != now.year) {
         areaState->runningMinutes = 0;
     }
+}
+
+static rainbarrelWaterLevel_t getRainbarrelLevel(void)
+{
+    rainbarrelWaterLevel_t waterLevel;
+
+    bool empty = !io_getInput(INPUT_RAINBARREL_EMPTY);
+    bool full  = !io_getInput(INPUT_RAINBARREL_FULL);
+
+    if(!empty && !full) {
+        return RAINBARREL_LEVEL_BETWEEN;
+    }
+    else if(empty && !full) {
+        return RAINBARREL_LEVEL_EMPTY;
+    }
+    else {
+        return RAINBARREL_LEVEL_FULL;
+    }
+}
+
+static bool processRainBarrel(rainbarrelState_t * state)
+{
+    rainbarrelWaterLevel_t waterLevel = getRainbarrelLevel();
+
+    if(state->prevLevel != RAINBARREL_LEVEL_EMPTY && waterLevel == RAINBARREL_LEVEL_EMPTY) {
+        state->running      = true;
+        state->runningSince = datetime_now();
+    }
+    else if(waterLevel == RAINBARREL_LEVEL_FULL) {
+        state->running = false;
+    }
+
+    datetime_t now = datetime_now();
+    if(datetime_diffMinutes(&state->runningSince, &now) >= 120) {
+        state->running = false;
+    }
+
+    state->prevLevel = waterLevel;
+    return state->running;
 }
 
 static bool execArea(control_areastate_t * areaState)
@@ -141,6 +195,12 @@ void control_executeThread(void)
         if(areaOutput) {
             allOff = false;
         }
+    }
+
+    bool rainbarrelOutput = processRainBarrel(&rainbarrelState);
+    io_setOutput(OUTPUT_RELAY_4, rainbarrelOutput);
+    if(rainbarrelOutput) {
+        allOff = false;
     }
 
     io_setOutput(OUTPUT_SHUTDOWN, !allOff);
