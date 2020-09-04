@@ -23,9 +23,9 @@ void rtc_getCurrentDateTime(datetime_t * out_datetime)
     uint32_t time = LL_RTC_TIME_Get(RTC);
     uint32_t date = LL_RTC_DATE_Get(RTC);
 
-    out_datetime->year   = date & 0xFF;
-    out_datetime->month  = (date >> RTC_OFFSET_MONTH) & 0xFF;
-    out_datetime->day    = (date >> RTC_OFFSET_DAY) & 0xFF;
+    out_datetime->year   = __LL_RTC_GET_YEAR(date);
+    out_datetime->month  = __LL_RTC_GET_MONTH(date);
+    out_datetime->day    = __LL_RTC_GET_DAY(date);
     out_datetime->hour   = (time >> RTC_OFFSET_HOUR) & 0xFF;
     out_datetime->minute = (time >> RTC_OFFSET_MINUTE) & 0xFF;
     out_datetime->second = time & 0xFF;
@@ -37,9 +37,10 @@ void rtc_setCurrentDateTime(const datetime_t * datetime)
     datetime_t dtBCD = datetime_toFormat(datetime, DTFORMAT_BCD);
 
     LL_RTC_DateTypeDef date;
-    date.Year  = dtBCD.year;
-    date.Month = dtBCD.month;
-    date.Day   = dtBCD.day;
+    date.WeekDay = LL_RTC_WEEKDAY_MONDAY;
+    date.Year    = dtBCD.year;
+    date.Month   = dtBCD.month;
+    date.Day     = dtBCD.day;
     LL_RTC_DATE_Init(RTC, LL_RTC_FORMAT_BCD, &date);
 
     LL_RTC_TimeTypeDef time;

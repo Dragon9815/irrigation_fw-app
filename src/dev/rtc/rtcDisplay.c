@@ -205,8 +205,8 @@ void rtcDisplay_execThread(void)
 
     case CLKSTATE_SET_YEAR: {
         if(rtcDisplay_blinkState) {
-            displaybuf[0] = digitToSegment[(nowBCD.year >> 12) & 0xF];
-            displaybuf[1] = digitToSegment[(nowBCD.year >> 8) & 0xF];
+            displaybuf[0] = digitToSegment[2 /*(nowBCD.year >> 12) & 0xF*/];
+            displaybuf[1] = digitToSegment[0 /*(nowBCD.year >> 8) & 0xF*/];
             displaybuf[2] = digitToSegment[(nowBCD.year >> 4) & 0xF];
             displaybuf[3] = digitToSegment[nowBCD.year & 0xF];
         }

@@ -16,11 +16,19 @@ typedef struct
 {
     control_config_t config;
     control_state_t  inputState;
+    control_state_t  prevInputState;
 
     bool       running;
     datetime_t runningSince;
     uint32_t   runningMinutes;
     datetime_t lastRunning;
+    bool       isHalfAuto;
+
+    struct
+    {
+        bool       running;
+        datetime_t runningSince;
+    } manual;
 } control_areastate_t;
 
 typedef enum
@@ -46,6 +54,8 @@ static bool                currentlyRaining;
 static bool                currentlyWindy;
 static bool                lowWater;
 static rainbarrelState_t   rainbarrelState;
+static datetime_t          lawnmowerStartTime;
+static datetime_t          lawnmowerStopTime;
 
 static void checkLastRunning(control_areastate_t * areaState, const datetime_t now)
 {
@@ -75,23 +85,28 @@ static rainbarrelWaterLevel_t getRainbarrelLevel(void)
 
 static bool processRainBarrel(rainbarrelState_t * state)
 {
-    rainbarrelWaterLevel_t waterLevel = getRainbarrelLevel();
-
-    if(state->prevLevel != RAINBARREL_LEVEL_EMPTY && waterLevel == RAINBARREL_LEVEL_EMPTY) {
-        state->running      = true;
-        state->runningSince = datetime_now();
+    if(lowWater) {
+        return false;
     }
-    else if(waterLevel == RAINBARREL_LEVEL_FULL) {
-        state->running = false;
-    }
+    else {
+        rainbarrelWaterLevel_t waterLevel = getRainbarrelLevel();
 
-    datetime_t now = datetime_now();
-    if(datetime_diffMinutes(&state->runningSince, &now) >= 120) {
-        state->running = false;
-    }
+        if(state->prevLevel != RAINBARREL_LEVEL_EMPTY && waterLevel == RAINBARREL_LEVEL_EMPTY) {
+            state->running      = true;
+            state->runningSince = datetime_now();
+        }
+        else if(waterLevel == RAINBARREL_LEVEL_FULL) {
+            state->running = false;
+        }
 
-    state->prevLevel = waterLevel;
-    return state->running;
+        datetime_t now = datetime_now();
+        if(datetime_diffMinutes(&state->runningSince, &now) >= 120) {
+            state->running = false;
+        }
+
+        state->prevLevel = waterLevel;
+        return state->running;
+    }
 }
 
 static bool execArea(control_areastate_t * areaState)
@@ -110,8 +125,26 @@ static bool execArea(control_areastate_t * areaState)
         break;
 
     case CONTROL_STATE_AUTO:
+        if(areaState->prevInputState == CONTROL_STATE_MANUAL) {
+            areaState->isHalfAuto = true;
+        }
+
         if(lowWater) {
             areaState->running = false;
+        }
+        else if(areaState->isHalfAuto) {
+            if(areaState->prevInputState == CONTROL_STATE_MANUAL) {
+                areaState->runningSince = datetime_now();
+                areaState->running      = true;
+            }
+            else {
+                uint32_t diff = datetime_diffMinutes(&(areaState->runningSince), &(datetime_t[]){ datetime_now() });
+                areaState->runningMinutes += diff;
+                if(diff >= areaState->config.manual_duration_minutes) {
+                    areaState->running    = false;
+                    areaState->isHalfAuto = false;
+                }
+            }
         }
         else {
             startMinute = datetime_getMinutesToday(&areaState->config.starttime);
@@ -143,12 +176,43 @@ static bool execArea(control_areastate_t * areaState)
         }
         break;
 
-    case CONTROL_STATE_MANUAL:
-        // TODO: add more logic
-        areaState->running = true;
-        break;
+    case CONTROL_STATE_MANUAL: {
+        areaState->running = false;
+
+        //bool locked = false;
+
+        //if(areaState->config.use_lawnmower_time) {
+        //    uint32_t startMinute = datetime_getMinutesToday(&lawnmowerStartTime);
+        //    uint32_t stopMinute  = datetime_getMinutesToday(&lawnmowerStopTime);
+        //    if(startMinute <= minutesToday && minutesToday < stopMinute) {
+        //        locked = true;
+        //    }
+        //}
+        //if(locked) {
+        //    areaState->running = false;
+        //}
+        //else {
+        //    if(areaState->config.manual_duration_minutes > 0) {
+        //        if(areaState->prevInputState != CONTROL_STATE_MANUAL) {
+        //            areaState->manual.running      = true;
+        //            areaState->manual.runningSince = now;
+        //        }
+        //        else {
+        //            uint32_t deltaMinutes = datetime_diffMinutes(&areaState->manual.runningSince, &now);
+        //            if(deltaMinutes >= areaState->config.manual_duration_minutes) {
+        //                areaState->manual.running = false;
+        //            }
+        //        }
+        //        areaState->running = areaState->manual.running;
+        //    }
+        //    else {
+        //        areaState->running = true;
+        //    }
+        //}
+    } break;
     }
 
+    areaState->prevInputState = areaState->inputState;
     return areaState->running;
 }
 
@@ -192,16 +256,20 @@ void control_executeThread(void)
     for(i = 0; i < NUM_CONTROL_AREAS; i++) {
         areaOutput = execArea(&areaStates[i]);
         io_setOutput(areaStates[i].config.output, areaOutput);
-        if(areaOutput) {
+        io_setOutput(areaStates[i].config.statusOutput, areaOutput);
+        if(areaStates[i].inputState != CONTROL_STATE_OFF) {
             allOff = false;
         }
+        // if(areaOutput) {
+        //     allOff = false;
+        // }
     }
 
     bool rainbarrelOutput = processRainBarrel(&rainbarrelState);
     io_setOutput(OUTPUT_RELAY_4, rainbarrelOutput);
-    if(rainbarrelOutput) {
-        allOff = false;
-    }
+    // if(rainbarrelOutput) {
+    //     allOff = false;
+    // }
 
     io_setOutput(OUTPUT_SHUTDOWN, !allOff);
 }
@@ -267,6 +335,16 @@ void control_setRainlessPeriod(control_area_t area, uint16_t hours)
     }
 
     areaStates[area].config.rainless_hours = hours;
+}
+
+void control_setLawnmowerStartTime(datetime_t starttime)
+{
+    lawnmowerStartTime = starttime;
+}
+
+void control_setLawnmowerStopTime(datetime_t stoptime)
+{
+    lawnmowerStopTime = stoptime;
 }
 
 void control_setAreaInputState(control_area_t area, control_state_t state)

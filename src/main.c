@@ -60,28 +60,95 @@ void Ident_Initalize()
     Ident.MCU_FlashSize  = Memory_ReadWord16(0x1FFF7A22);
 }
 
+#define NUM_TRINPUTS        3
+#define TRINPUT_FILTER_TIME 3000
+
 typedef enum
 {
-    TRINPUT_OFF  = 0,
-    TRINPUT_HAND = 1,
-    TRINPUT_AUTO = 2
+    TRINPUT_SPRINKLER = 0,
+    TRINPUT_HEDGE,
+    TRINPUT_PLANTS
 } trinput_t;
 
-control_state_t readTrinput(input_t inputAuto, input_t inputManual)
+typedef struct
 {
-    bool bHand = io_getInput(inputManual);
-    bool bAuto = io_getInput(inputAuto);
+    control_state_t rawState;
+    control_state_t filteredState;
+    uint32_t        filterT0;
 
-    if(bHand && !bAuto) {
-        return CONTROL_STATE_MANUAL;
-    }
-    else if(!bHand && bAuto) {
-        return CONTROL_STATE_AUTO;
+    struct
+    {
+        input_t inputAuto;
+        input_t inputManual;
+    } config;
+} trinput_state_t;
+
+trinput_state_t trinputs[NUM_TRINPUTS] = {
+    [TRINPUT_SPRINKLER] = { .config = { INPUT_AUTO1, INPUT_MANUAL1 } },
+    [TRINPUT_HEDGE]     = { .config = { INPUT_AUTO2, INPUT_MANUAL2 } },
+    [TRINPUT_PLANTS]    = { .config = { INPUT_AUTO3, INPUT_MANUAL3 } },
+};
+
+control_state_t readRawTrinputState(trinput_t trinput)
+{
+    if(trinput >= 0 && trinput < NUM_TRINPUTS) {
+        bool bHand = io_getInput(trinputs[trinput].config.inputManual);
+        bool bAuto = io_getInput(trinputs[trinput].config.inputAuto);
+
+        if(bHand && bAuto) {
+            return CONTROL_STATE_MANUAL;
+        }
+        else if(!bHand && bAuto) {
+            return CONTROL_STATE_AUTO;
+        }
+        else {
+            return CONTROL_STATE_OFF;
+        }
     }
     else {
         return CONTROL_STATE_OFF;
     }
 }
+
+control_state_t readTrinput(trinput_t trinput)
+{
+    if(trinput >= 0 && trinput < NUM_TRINPUTS) {
+        control_state_t newState = readRawTrinputState(trinput);
+
+        if(newState != trinputs[trinput].rawState) {
+            trinputs[trinput].rawState = newState;
+            trinputs[trinput].filterT0 = Timing_GetTicks_ms();
+        }
+
+        if(trinputs[trinput].rawState != trinputs[trinput].filteredState) {
+            uint32_t deltaT = Timing_GetTicks_ms() - trinputs[trinput].filterT0;
+            if(deltaT >= TRINPUT_FILTER_TIME) {
+                trinputs[trinput].filteredState = trinputs[trinput].rawState;
+            }
+        }
+
+        return trinputs[trinput].filteredState;
+    }
+    else {
+        return CONTROL_STATE_OFF;
+    }
+}
+
+// control_state_t readTrinput(input_t inputAuto, input_t inputManual)
+// {
+//     bool bHand = io_getInput(inputManual);
+//     bool bAuto = io_getInput(inputAuto);
+
+//     if(bHand && !bAuto) {
+//         return CONTROL_STATE_MANUAL;
+//     }
+//     else if(!bHand && bAuto) {
+//         return CONTROL_STATE_AUTO;
+//     }
+//     else {
+//         return CONTROL_STATE_OFF;
+//     }
+// }
 
 // void printTrinputState(const char * name, trinput_t trinput)
 // {
@@ -258,8 +325,8 @@ static cisternWaterLevel_t getAndDisplayWaterLevel(void)
         waterLevel = CISTERN_LEVEL_EMPTY;
     }
 
-    io_setOutput(OUTPUT_STATUS1, waterLevel >= CISTERN_LEVEL_QUATER);
-    io_setOutput(OUTPUT_STATUS2, waterLevel >= CISTERN_LEVEL_HALF);
+    io_setOutput(OUTPUT_CISTERN_QUATER, waterLevel >= CISTERN_LEVEL_QUATER);
+    io_setOutput(OUTPUT_CISTERN_HALF, waterLevel >= CISTERN_LEVEL_HALF);
 
     return waterLevel;
 }
@@ -283,29 +350,39 @@ int main(void)
 
     control_initialize();
 
-    area_config.output           = OUTPUT_RELAY_1;
-    area_config.starttime        = datetime_fromTime(3, 0, 0);
-    area_config.endtime          = datetime_fromTime(5, 0, 0);
-    area_config.duration_minutes = 30;
-    area_config.windless_hours   = 0;
-    area_config.rainless_hours   = 24 * 2;
+    area_config.output                  = OUTPUT_RELAY_1;
+    area_config.statusOutput            = OUTPUT_STATUS1;
+    area_config.starttime               = datetime_fromTime(3, 0, 0);
+    area_config.endtime                 = datetime_fromTime(5, 0, 0);
+    area_config.duration_minutes        = 30;
+    area_config.windless_hours          = 0;
+    area_config.rainless_hours          = 24 * 2;
+    area_config.manual_duration_minutes = 30;
+    area_config.use_lawnmower_time      = true;
     control_configArea(CONTROL_AREA_LAWN, &area_config);
 
-    area_config.output           = OUTPUT_RELAY_2;
-    area_config.starttime        = datetime_fromTime(3, 0, 0);
-    area_config.endtime          = datetime_fromTime(5, 0, 0);
-    area_config.duration_minutes = 120;
-    area_config.windless_hours   = 0;
-    area_config.rainless_hours   = 24 * 5;
+    area_config.output                  = OUTPUT_RELAY_2;
+    area_config.statusOutput            = OUTPUT_STATUS2;
+    area_config.starttime               = datetime_fromTime(3, 0, 0);
+    area_config.endtime                 = datetime_fromTime(5, 0, 0);
+    area_config.duration_minutes        = 120;
+    area_config.windless_hours          = 0;
+    area_config.rainless_hours          = 24 * 5;
+    area_config.manual_duration_minutes = 30;
     control_configArea(CONTROL_AREA_HEDGE, &area_config);
 
-    area_config.output           = OUTPUT_RELAY_3;
-    area_config.starttime        = datetime_fromTime(3, 0, 0);
-    area_config.endtime          = datetime_fromTime(7, 0, 0);
-    area_config.duration_minutes = 180;
-    area_config.windless_hours   = 0;
-    area_config.rainless_hours   = 24 * 2;
+    area_config.output                  = OUTPUT_RELAY_3;
+    area_config.statusOutput            = OUTPUT_STATUS3;
+    area_config.starttime               = datetime_fromTime(3, 0, 0);
+    area_config.endtime                 = datetime_fromTime(7, 0, 0);
+    area_config.duration_minutes        = 180;
+    area_config.windless_hours          = 0;
+    area_config.rainless_hours          = 24 * 2;
+    area_config.manual_duration_minutes = 30;
     control_configArea(CONTROL_AREA_PLANTS, &area_config);
+
+    control_setLawnmowerStartTime(datetime_fromTime(20, 0, 0));
+    control_setLawnmowerStopTime(datetime_fromTime(22, 0, 0));
 
     rtcDisplay_initialize();
 
@@ -313,13 +390,23 @@ int main(void)
     while(true) {
         //shell_execThread();
 
+        // datetime_t dt;
+        // rtc_getCurrentDateTime(&dt);
+        // datetime_t dt_bin = datetime_toFormat(&dt, DTFORMAT_BIN);
+        // dt_bin.year++;
+        // if(dt_bin.year > 99) {
+        //     dt_bin.year = 0;
+        // }
+        // dt = datetime_toFormat(&dt_bin, DTFORMAT_BCD);
+        // rtc_setCurrentDateTime(&dt);
+
         io_execThread();
 
         cisternWaterLevel_t waterLevel = getAndDisplayWaterLevel();
 
-        control_setAreaInputState(CONTROL_AREA_LAWN, readTrinput(INPUT_AUTO1, INPUT_MANUAL1));
-        control_setAreaInputState(CONTROL_AREA_HEDGE, readTrinput(INPUT_AUTO2, INPUT_MANUAL2));
-        control_setAreaInputState(CONTROL_AREA_PLANTS, readTrinput(INPUT_AUTO3, INPUT_MANUAL3));
+        control_setAreaInputState(CONTROL_AREA_LAWN, readTrinput(TRINPUT_SPRINKLER));
+        control_setAreaInputState(CONTROL_AREA_HEDGE, readTrinput(TRINPUT_HEDGE));
+        control_setAreaInputState(CONTROL_AREA_PLANTS, readTrinput(TRINPUT_PLANTS));
         control_setIsRaining(io_getInput(INPUT_RAIN_SENSOR));
         control_setIsWindy(io_getInput(INPUT_WIND_SENSOR));
         control_setLowWater(waterLevel < CISTERN_LEVEL_QUATER);

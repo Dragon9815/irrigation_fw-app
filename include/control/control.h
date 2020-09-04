@@ -30,11 +30,14 @@ typedef enum
 typedef struct
 {
     output_t   output;
+    output_t   statusOutput;
     datetime_t starttime;
     datetime_t endtime;
     uint16_t   duration_minutes;
     uint8_t    windless_hours;
     uint8_t    rainless_hours;
+    uint32_t   manual_duration_minutes;
+    bool       use_lawnmower_time;
 } control_config_t;
 
 extern void control_initialize(void);
@@ -48,6 +51,9 @@ extern void control_setStopTime(control_area_t area, const datetime_t * stoptime
 extern void control_setDuration(control_area_t area, uint16_t minutes);
 extern void control_setWindlessPeriod(control_area_t area, uint16_t hours);
 extern void control_setRainlessPeriod(control_area_t area, uint16_t hours);
+
+extern void control_setLawnmowerStartTime(datetime_t starttime);
+extern void control_setLawnmowerStopTime(datetime_t stoptime);
 
 extern void control_setAreaInputState(control_area_t area, control_state_t state);
 extern void control_setIsRaining(bool raining);

@@ -21,9 +21,9 @@ typedef struct
 {
     datetime_format_t format;
 
-    u16 year;
-    u8  month;
-    u8  day;
+    u8 year;
+    u8 month;
+    u8 day;
 
     u8 hour;
     u8 minute;
